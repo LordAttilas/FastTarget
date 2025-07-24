@@ -27,7 +27,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ]]
 _addon.name = 'FastTarget'
 _addon.author = 'Atilas'
-_addon.version = '1.8'
+_addon.version = '1.9'
 _addon.command = 'ft'
 _addon.commands = {'help', 'bind', 'reset', 'target', 'debug'}
 _addon.language = 'english'
@@ -66,6 +66,12 @@ playerStatus = -1
 chat_log_open = false
 chat_log_expanded = false
 
+function reset()
+	targeting = false
+	playerStatus = -1
+	chat_log_open = false
+	chat_log_expanded = false
+end
 
 windower.register_event('addon command', function(...)
 
@@ -124,7 +130,7 @@ end)
 windower.register_event('status change',function(new,old)
     windower.debug('status change '..new)
     if T{2,3,4}:contains(old) or T{2,3,4}:contains(new) then 
-		targeting = false
+		reset()
 		return 
 	end
 
