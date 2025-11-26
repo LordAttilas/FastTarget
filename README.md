@@ -1,5 +1,5 @@
 # FastTarget
-Windower 4 addon for FFXI that allow quicker target change
+Windower 4 addon for FFXI that allow quicker target change.
 
 Allows instant override of manual lock, in-combat lock, action menu lock, or chat history lock for faster target switching at any time using the default Tab, Alt-Tab, and F8 keys. In game wizard to map additional custom keys for target left, right and nearest.
 
