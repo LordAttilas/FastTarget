@@ -9,4 +9,4 @@ Automatic best target search using the in-game sub-targeting system with F8 or c
 
 In-game minimalist GUI that display distance, health point of current target, sub-target mode and if a target is queued (Work in progress).
 
-**Recommended to still use the in-game “/autotarget on”, since it may help avoid storing your weapon between fights in lag-heavy environments, at the cost of briefly switching targets twice when your current target dies. This can especially happen if someone else kills your target. At least it allows you to pre-select the target target you want or keep fighting if you forget to do so beforehand.
+**Recommended to still use the in-game “/autotarget on”, since it may help avoid storing your weapon between fights in lag-heavy environments, at the cost of briefly switching targets twice when your current target dies. This can especially happen if someone else kills your target. At least it allows you to pre-select the target you want or keep fighting if you forget to do so beforehand.
