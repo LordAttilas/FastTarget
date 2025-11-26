@@ -1,5 +1,5 @@
 --[[
-Copyright © 2024, from
+Copyright © 2025, from
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -27,7 +27,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ]]
 _addon.name = 'FastTarget'
 _addon.author = 'Atilas'
-_addon.version = '2.4'
+_addon.version = '2.5'
 _addon.commands = {'FastTarget','ft'}
 _addon.language = 'english'
 
@@ -148,7 +148,7 @@ windower.register_event('addon command', function(...)
 		windower.add_to_chat(200, '  Binding custom keys that will be alternatives to the default Tab, Alt-Tab and F8.')
 		windower.add_to_chat(200, '  Press to register three custom keys one after then other.')
 		windower.add_to_chat(200, 'Start pressing keys now... (Cancel using ESC)')
-		windower.add_to_chat(200, '  1) Press key to bind target left:')
+		windower.add_to_chat(200, '  1) Press key to bind target left (Alt-Tab):')
 		bindmode = 1
 	
 	elseif #arg == 1 and arg[1]:lower() == 'unbind' then
@@ -183,7 +183,7 @@ windower.register_event('addon command', function(...)
 			windower.add_to_chat(200, 'FastTarget - Default nearest sub-target behavior (F8).')
 		else
 			settings.use_auto_next_st = true
-			windower.add_to_chat(200, 'FastTarget - Automatically search for the next, nearest and in front sub-target available using ingame sub-target system (F8). This search fill be done by rapidly switching sub-target arrow until one of the best targets is found. This allow to confirm, adjust or cancel sub-target.')
+			windower.add_to_chat(200, 'FastTarget - Automatically search for the next, nearest and in front sub-target available using ingame sub-target system (F8). This search will be done by rapidly switching sub-target arrow until one of the best targets is found. This allow to confirm, adjust or cancel sub-target.')
 		end
 		settings:save()
 			
@@ -193,7 +193,7 @@ windower.register_event('addon command', function(...)
 			windower.add_to_chat(200, 'FastTarget - Manual confirmation to apply sub-target.')
 		else
 			settings.use_auto_switch = true
-			windower.add_to_chat(200, 'FastTarget - Automatically attack last queued or current sub-target when current target die.')
+			windower.add_to_chat(200, 'FastTarget - Automatically switch to current or last queued sub-target when current target die.')
 		end
 		settings:save()
 		
@@ -221,12 +221,12 @@ windower.register_event('addon command', function(...)
 	elseif #arg == 0 or (#arg == 1 and arg[1]:lower() == 'help') then
 		windower.add_to_chat(200, 'FastTarget - Allows instant override of target lock, in-combat lock, action menu lock, or chat history lock for faster target switching using Tab, Alt-Tab, and F8 keys. Optional automatic target search and switch using the in-game sub-target function.')
 		windower.add_to_chat(200, 'Available Options:')
-		windower.add_to_chat(200, '  //ft search - Automatically find next best sub-target when using nearest keys '..(settings.use_auto_next_st and '(Enabled)' or '(Disabled)'))
+		windower.add_to_chat(200, '  //ft search - Automatically find next best sub-target when using F8 key '..(settings.use_auto_next_st and '(Enabled)' or '(Disabled)'))
 		windower.add_to_chat(200, '  //ft switch - Automatic switch to current/queued sub-target when current target die '..(settings.use_auto_switch and '(Enabled)' or '(Disabled)'))
-		windower.add_to_chat(200, '  //ft queue - Allow queuing using nearest key when in-front and near current target '..((settings.use_auto_switch and settings.use_allow_queue) and '(Enabled)' or '(Disabled)'))
+		windower.add_to_chat(200, '  //ft queue - Queue sub-target using F8 key when in-front and near current target '..((settings.use_auto_switch and settings.use_allow_queue) and '(Enabled)' or '(Disabled)'))
 		windower.add_to_chat(200, '  //ft target - Change out-of-combat target selection mode between all or npc '..(settings.use_st_target and '(All)' or '(NPC)'))
 		windower.add_to_chat(200, '  //ft display - Toggle display of information '..(settings.display_ui and '(Enabled)' or '(Disabled)'))
-		windower.add_to_chat(200, '  //ft bind   - Bind additional left, right and nearest target custom keys')
+		windower.add_to_chat(200, '  //ft bind   - Bind additional Tab, Alt-Tab and F8 custom keys')
 		windower.add_to_chat(200, '  //ft unbind - Reset custom key binds')
 		windower.add_to_chat(200, '  //ft debug - Toggle debug mode')
 		windower.add_to_chat(200, '  //ft help   - Displays this text')
@@ -441,12 +441,12 @@ windower.register_event('keyboard',function(dik,pressed,flags,blocked)
 				if bindmode == 1 then
 					settings.custom_left = dik
 					if debugmode then windower.add_to_chat(207, 'FastTarget - Custom target left bound to '..settings.custom_left) end
-					windower.add_to_chat(200, '  2) Press key to bind target right:')
+					windower.add_to_chat(200, '  2) Press key to bind target right (Tab):')
 					bindmode = bindmode + 1
 				elseif bindmode == 2 then
 					settings.custom_right = dik
 					if debugmode then windower.add_to_chat(207, 'FastTarget - Custom target right bound to '..settings.custom_right) end
-					windower.add_to_chat(200, '  3) Press key to bind target nearest:')
+					windower.add_to_chat(200, '  3) Press key to bind target nearest (F8):')
 					bindmode = bindmode + 1
 				elseif bindmode == 3 then
 					settings.custom_nearest = dik
