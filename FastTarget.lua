@@ -27,7 +27,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ]]
 _addon.name = 'FastTarget'
 _addon.author = 'Atilas'
-_addon.version = '2.5'
+_addon.version = '2.6'
 _addon.commands = {'FastTarget','ft'}
 _addon.language = 'english'
 
@@ -92,19 +92,20 @@ local key_alt = 56
 local key_ctrl = 29
 
 local playerStatus = -1
-local chat_log_open = false
+local chat_log_open = 0
 local chat_log_expanded = false
 
 local find_distance = 31
 local find_tolerance_radius = 2
 local find_angle = 120
-local find_max_distance_auto_queue = 5
+local find_max_distance_auto_queue = 6
 local find_mobs = {}
 local find_mob_backward = false
 local find_mob_first_direction = 0
 local find_current_mob_dying = nil
 local find_queue_target_activated = false
-local find_queue_target_selected = false
+local find_queue_target_current_id = 0
+local find_queue_target_next_id = 0
 local find_protectLoop = 0
 local find_mobs_clock = os.clock()
 local find_attack_clock = os.clock()
@@ -120,13 +121,14 @@ function fullReset()
 	main_target_clock = os.clock() --Used to avoid main target change bounce between <st> and <t>
 	find_lastst_clock = os.clock() --Force delay of automatic last sub-target 
 	playerStatus = -1
-	chat_log_open = false
+	chat_log_open = 0
 	chat_log_expanded = false
 	find_current_mob_dying = nil
 	find_mobs = {}
 	find_protectLoop = 0
 	find_queue_target_activated = false
-	find_queue_target_selected = false
+	find_queue_target_current_id = 0
+	find_queue_target_next_id = 0
 end
 
 function reset()
@@ -203,7 +205,7 @@ windower.register_event('addon command', function(...)
 			windower.add_to_chat(200, 'FastTarget - New sub-target will change target immediately upon confirmation.')
 		else
 			settings.use_allow_queue = true
-			windower.add_to_chat(200, 'FastTarget - New sub-target will be queued and switched to when current combat target die. Queuing only work if current in-combat target is in front and distance is less than '..find_max_distance_auto_queue..' yards. Additionnaly tracking and queueing sub-target made from spell and job ability on a target different than the current one. This option need auto-switch to be activated.')
+			windower.add_to_chat(200, 'FastTarget - New sub-target will be queued and switched to when current combat target die. Queuing only work if current in-combat target is in front and distance is less than '..find_max_distance_auto_queue..' yards. Additionnaly track and queue sub-target made from spell and job ability on a sub-target different than the current one. This option need auto-switch to be activated.')
 		end
 		settings:save()
 		
@@ -409,22 +411,30 @@ windower.register_event('keyboard',function(dik,pressed,flags,blocked)
 		if S{key_f,key_esc,key_enter}[dik] then
 			local chat_log_open_previous = chat_log_open
 			
-			if dik == key_f then
-				chat_log_open = true
+			if dik == key_f and not chat_log_expanded then
+				if chat_log_open == 1 then 
+					chat_log_open = 2
+				elseif chat_log_open == 2 then 
+					chat_log_open = 0
+				else 
+					chat_log_open = 1 
+				end
 			elseif dik == key_enter then
-				if chat_log_open then chat_log_expanded = true end
+				if chat_log_open == 1 then chat_log_expanded = true end
 			elseif dik == key_esc then
 				if chat_log_expanded then chat_log_expanded = false
-				elseif chat_log_open then chat_log_open = false end
+				elseif chat_log_open > 0 then chat_log_open = 0 end
 			end
 			if debugmode then
 				if chat_log_expanded and dik == key_f then
 					windower.add_to_chat(207, 'FastTarget - Chat log is expanded page change.')
 				elseif chat_log_expanded then
 					windower.add_to_chat(207, 'FastTarget - Chat log is expanded.')
-				elseif chat_log_open then
+				elseif chat_log_open == 1 then
 					windower.add_to_chat(207, 'FastTarget - Chat log is open.')
-				elseif chat_log_open_previous then
+				elseif chat_log_open == 2 then
+					windower.add_to_chat(207, 'FastTarget - Chat log is open in status bar.')
+				elseif chat_log_open_previous > 0 then
 					windower.add_to_chat(207, 'FastTarget - Chat log is closed.')
 				end
 			end
@@ -470,18 +480,18 @@ windower.register_event('keyboard',function(dik,pressed,flags,blocked)
 			
 			--Automatic Chatlog away
 			local chatLogWasOpen = false
-			if chat_log_open and not chat_log_expanded and S{key_tab,key_f8,key_minus,key_alt,key_ctrl,settings.custom_left,settings.custom_right,settings.custom_nearest}[dik] then
+			if chat_log_open > 0 and not chat_log_expanded and S{key_tab,key_f8,key_minus,key_alt,key_ctrl,settings.custom_left,settings.custom_right,settings.custom_nearest}[dik] then
 				windower.send_command('setkey escape down;wait 0.2;setkey escape up')
-				chat_log_open = false
+				chat_log_open = 0
 				chatLogWasOpen = true
 				if debugmode then windower.add_to_chat(207, 'FastTarget - Chat log out of the way !!') end
 			end
 			
 			if player and ((not chatLogWasOpen and info.menu_open) or playerStatus == 1 or player.target_locked == true) then
 				
-				if find_queue_target_selected and S{key_tab, key_f8, settings.custom_left,settings.custom_right,settings.custom_nearest}[dik] then 
+				if find_queue_target_next_id > 0 and S{key_tab, key_f8, settings.custom_left,settings.custom_right,settings.custom_nearest}[dik] then 
 					if debugmode then windower.add_to_chat(207, 'FastTarget - Reset last sub-target selection.') end
-					find_queue_target_selected = false --Need to reset previous sub-target if we do another one
+					find_queue_target_next_id = 0 --Need to reset previous sub-target if we do another one
 				end
 				
 				if not targeting and ((S{key_tab,key_f8,settings.custom_left,settings.custom_right,settings.custom_nearest}[dik] and flags == 0) or (dik==key_tab and flags == 1)) then
@@ -494,7 +504,8 @@ windower.register_event('keyboard',function(dik,pressed,flags,blocked)
 					end
 					
 					--Detect if in combat or nearly just death target
-					local inCombat = playerStatus == 1 or ( target and (target.status == 2 or target.status == 3))
+					--local inCombat = playerStatus == 1 or (target and (target.status == 2 or target.status == 3))
+					local inCombat = playerStatus == 1
 					local targetCommand = '/target'
 					if inCombat then
 						--Decide if we queue or change to next target
@@ -535,8 +546,13 @@ windower.register_event('keyboard',function(dik,pressed,flags,blocked)
 			
 				elseif S{key_enter}[dik] then --Esc or Enter
 					if targeting and find_queue_target_activated then
-						if debugmode then windower.add_to_chat(207, 'FastTarget - new subtarget selected.') end
-						find_queue_target_selected = true
+						local currentTarget = windower.ffxi.get_mob_by_target('t')
+						local lastSubTarget = windower.ffxi.get_mob_by_target('st','lastst')
+						if currentTarget and lastSubTarget and currentTarget.id ~= lastSubTarget.id and is_valid_target(lastSubTarget) then
+							find_queue_target_current_id = currentTarget.id
+							find_queue_target_next_id = lastSubTarget.id
+							if debugmode then windower.add_to_chat(207, 'FastTarget - new subtarget selected for next target '..find_queue_target_next_id) end
+						end
 					end
 					
 					reset()
@@ -579,7 +595,7 @@ windower.register_event("prerender", function()
 			if t and t.id ~= player.id and is_mob(t) then
 				mainuitext.distance = t.distance:sqrt()
 				mainuitext.hpp = t.hpp
-				if find_queue_target_selected then
+				if find_queue_target_next_id > 0 then
 					mainuitext.nextTarget = color_green.."SET"..color_end
 				elseif targeting then
 					if find_queue_target_activated then
@@ -685,14 +701,15 @@ windower.register_event("prerender", function()
 		end
 	
 		--Automatic queue last sub target tracking
-		if settings.use_allow_queue and not targeting and not find_queue_target_selected and main_target_changed and playerStatus == 1 and currentOSClock - find_lastst_clock > 2 then
+		if settings.use_allow_queue and not targeting and find_queue_target_next_id == 0 and main_target_changed and playerStatus == 1 and currentOSClock - find_lastst_clock > 2 then
 			find_lastst_clock = currentOSClock
-			local lastSubTarget = windower.ffxi.get_mob_by_target('lastst')
+			local lastSubTarget = windower.ffxi.get_mob_by_target('st','lastst')
 			local currentTarget = windower.ffxi.get_mob_by_target('t')
 			if currentTarget and lastSubTarget and currentTarget.id ~= lastSubTarget.id and is_proper_target(lastSubTarget) then
 				if debugmode then windower.add_to_chat(200, 'FastTarget - Activating current mob tracking for automatic switch to last sub target') end
 				main_target_changed = false
-				find_queue_target_selected = true
+				find_queue_target_current_id = currentTarget.id
+				find_queue_target_next_id = lastSubTarget.id
 			end
 		end
 		
@@ -709,11 +726,11 @@ windower.register_event("prerender", function()
 					if not currentTarget or (is_mob(currentTarget) and (currentTarget.hpp==0 or currentTarget.status == 2 or currentTarget.status == 3)) then
 						if find_queue_target_activated then
 							if debugmode then windower.add_to_chat(200, 'FastTarget - Dying mob detected so automatically applying unselected last sub-target !!') end
-							fullReset() --Since we automatically confirm sub-target we want to remove targeting toggle.
+							fullReset()
 							windower.send_command('setkey enter down;wait 0.2;setkey enter up ;wait 0.2;input /attack <lastst>')						
 						else
 							if debugmode then windower.add_to_chat(200, 'FastTarget - Dying mob detected so automatically applying sub-target !!') end
-							fullReset() --Since we automatically confirm sub-target we want to remove targeting toggle.
+							fullReset()
 							windower.send_command('setkey enter down;wait 0.2;setkey enter up')
 						end						
 						return
@@ -721,19 +738,29 @@ windower.register_event("prerender", function()
 						if currentTarget.id ~= currentSubTarget.id then throttled_add_to_chat(207, 'FastTarget - Watching current target to die (Active sub-target)...') end
 					end
 				end
-			elseif find_queue_target_selected then
+			elseif find_queue_target_next_id > 0 then
 				--Active last sub-target is selected and waiting for mob to die
+				local lastSubTarget = windower.ffxi.get_mob_by_target('st','lastst')
+				if not lastSubTarget then
+					if debugmode then windower.add_to_chat(200, 'FastTarget - No more last sub-target. Cancelling auto-target next...') end
+					fullReset()
+					return
+				end
+				
 				local currentTarget = windower.ffxi.get_mob_by_target('t')
 				if not currentTarget then
-					if debugmode then windower.add_to_chat(207, 'FastTarget - No more target. Ignoring last sub-target !!') end
-					fullReset() --Since we automatically confirm sub-target we want to remove targeting toggle.
+					if debugmode then windower.add_to_chat(200, 'FastTarget - No more target. Ignoring last sub-target !!') end
+					fullReset()
 					return
 				elseif is_mob(currentTarget) then
-					if (currentTarget.hpp==0 or currentTarget.status == 2 or currentTarget.status == 3) then
-						if debugmode then windower.add_to_chat(200, 'FastTarget - Dying mob detected so automatically attacking last sub-target !!') end
-						fullReset() --Since we automatically confirm sub-target we want to remove targeting toggle.
+					if currentTarget.id ~= find_queue_target_current_id then						
+						if debugmode then windower.add_to_chat(200, 'FastTarget - Missed dying mobs and already on new native autotarget so automatically attacking last sub-target !!') end
+						fullReset()
 						windower.send_command('@input /attack <lastst>')
-						return
+					elseif (currentTarget.hpp==0 or currentTarget.status == 2 or currentTarget.status == 3) then						
+						if debugmode then windower.add_to_chat(200, 'FastTarget - Dying mob detected so automatically attacking last sub-target !!') end
+						fullReset()
+						windower.send_command('@input /attack <lastst>')
 					elseif debugmode then
 						throttled_add_to_chat(207, 'FastTarget - Watching current target to die (Last sub-target)...')
 					end
