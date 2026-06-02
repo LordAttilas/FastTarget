@@ -27,7 +27,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ]]
 _addon.name = 'FastTarget'
 _addon.author = 'Atilas'
-_addon.version = '3.0'
+_addon.version = '3.1'
 _addon.commands = {'FastTarget','ft'}
 _addon.language = 'english'
 
@@ -106,6 +106,8 @@ local find_current_mob_dying = nil
 local find_queue_target_activated = false
 local find_queue_target_current_id = 0
 local find_queue_target_next_id = 0
+local find_queue_validate_next_id = 0
+local find_queue_validate_loop = 0
 local find_protectLoop = 0
 
 local main_target_changed = false
@@ -122,6 +124,7 @@ function fullReset()
 	find_queue_target_activated = false
 	find_queue_target_current_id = 0
 	find_queue_target_next_id = 0
+	find_queue_validate_loop = 0
 end
 
 function reset()
@@ -288,7 +291,9 @@ local function recursiveDisplayUI()
 			if t and t.id ~= player.id and is_mob(t) then
 				mainuitext.distance = t.distance:sqrt()
 				mainuitext.hpp = t.hpp
-				if find_queue_target_next_id > 0 then
+				if find_queue_validate_next_id > 0 then
+					mainuitext.nextTarget = color_orange.."SWITCH"..color_end
+				elseif find_queue_target_next_id > 0 then
 					mainuitext.nextTarget = color_green.."SET"..color_end
 				elseif subTargeting then
 					if find_queue_target_activated then
@@ -323,6 +328,31 @@ local function displayUI()
 	end
 end
 
+local function validateNextTarget()
+	if find_queue_validate_loop == 0 then 
+		throttled_add_to_chat(200, 'FastTarget - Checking if we are on the good last sub-target...') 
+	end
+	if find_queue_validate_next_id > 0 and find_queue_validate_loop <= 5 then
+		local stmob = windower.ffxi.get_mob_by_target('lastst')
+		if stmob and stmob.id == find_queue_validate_next_id then
+			local currentTarget = windower.ffxi.get_mob_by_target('t')
+			if not currentTarget or currentTarget.id ~= find_queue_validate_next_id or playerStatus==0 then
+				windower.send_command('@input /attack <lastst>')
+				throttled_add_to_chat(200, 'FastTarget - Still not targeting the last sub-target, trying to switch again now...')
+				find_queue_validate_loop = find_queue_validate_loop + 1
+				validateNextTarget:schedule(1)
+				return
+			else
+				throttled_add_to_chat(200, 'FastTarget - Target set properly.')
+			end
+		else
+			throttled_add_to_chat(200, 'FastTarget - Lost last sub-target.')
+		end
+	end
+	find_queue_validate_next_id = 0
+	find_queue_validate_loop = 0
+end
+
 
 local function switchNextTarget()
 
@@ -349,7 +379,7 @@ local function switchNextTarget()
 					if currentTarget.id ~= currentSubTarget.id then throttled_add_to_chat(207, 'FastTarget - Watching current target to die (Active sub-target)...') end
 				end
 			end
-		else --if find_queue_target_next_id > 0 then
+		else 
 			--Active last sub-target is selected and waiting for mob to die
 			local lastSubTarget = windower.ffxi.get_mob_by_target('st','lastst')
 			if not lastSubTarget then
@@ -366,12 +396,16 @@ local function switchNextTarget()
 			elseif is_mob(currentTarget) then
 				if currentTarget.id ~= find_queue_target_current_id then						
 					if debugmode then windower.add_to_chat(200, 'FastTarget - Missed dying mobs and already on new native autotarget so automatically attacking last sub-target !!') end
+					find_queue_validate_next_id = find_queue_target_next_id
 					fullReset()
 					windower.send_command('@input /attack <lastst>')
+					validateNextTarget:schedule(0.5) 
 				elseif (currentTarget.hpp==0 or currentTarget.status == 2 or currentTarget.status == 3) then						
 					if debugmode then windower.add_to_chat(200, 'FastTarget - Dying mob detected so automatically attacking last sub-target !!') end
+					find_queue_validate_next_id = find_queue_target_next_id
 					fullReset()
 					windower.send_command('@input /attack <lastst>')
+					validateNextTarget:schedule(1) 
 				elseif debugmode then
 					throttled_add_to_chat(207, 'FastTarget - Watching current target to die (Last sub-target)...')
 				end
@@ -478,13 +512,14 @@ windower.register_event('status change',function(new,old)
     --windower.debug('status change '..new)
     if debugmode then windower.add_to_chat(207, 'FastTarget - Status change detected new='..new..' old='..old) end
 	--if T{2,3,4}:contains(old) or T{2,3,4}:contains(new) then 
+	
+	playerStatus = new
 	if T{2,3,4}:contains(new) then 
 		if debugmode then windower.add_to_chat(207, 'FastTarget - FullReset from status change') end
 		fullReset()
 		return
 	end
 	
-	playerStatus = new
 end)
 
 windower.register_event('target change', function(index)
