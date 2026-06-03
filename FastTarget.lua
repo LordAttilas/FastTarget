@@ -27,7 +27,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ]]
 _addon.name = 'FastTarget'
 _addon.author = 'Atilas'
-_addon.version = '3.1'
+_addon.version = '3.2'
 _addon.commands = {'FastTarget','ft'}
 _addon.language = 'english'
 
@@ -330,7 +330,7 @@ end
 
 local function validateNextTarget()
 	if find_queue_validate_loop == 0 then 
-		throttled_add_to_chat(200, 'FastTarget - Checking if we are on the good last sub-target...') 
+		if debugmode then windower.add_to_chat(200, 'FastTarget - Checking if we are on the good last sub-target...') end
 	end
 	if find_queue_validate_next_id > 0 and find_queue_validate_loop <= 5 then
 		local stmob = windower.ffxi.get_mob_by_target('lastst')
@@ -338,15 +338,15 @@ local function validateNextTarget()
 			local currentTarget = windower.ffxi.get_mob_by_target('t')
 			if not currentTarget or currentTarget.id ~= find_queue_validate_next_id or playerStatus==0 then
 				windower.send_command('@input /attack <lastst>')
-				throttled_add_to_chat(200, 'FastTarget - Still not targeting the last sub-target, trying to switch again now...')
+				if debugmode then windower.add_to_chat(200, 'FastTarget - Still not targeting the last sub-target, trying to switch again now...') end
 				find_queue_validate_loop = find_queue_validate_loop + 1
 				validateNextTarget:schedule(1)
 				return
 			else
-				throttled_add_to_chat(200, 'FastTarget - Target set properly.')
+				if debugmode then windower.add_to_chat(200, 'FastTarget - Target set properly.') end
 			end
 		else
-			throttled_add_to_chat(200, 'FastTarget - Lost last sub-target.')
+			if debugmode then windower.add_to_chat(200, 'FastTarget - Lost last sub-target.') end
 		end
 	end
 	find_queue_validate_next_id = 0
